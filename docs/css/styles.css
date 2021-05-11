@@ -1,0 +1,53 @@
+.wy-side-nav-search{
+    background: #1C243B;
+}
+
+.wy-nav-side{
+    background: #1C243B;
+}
+
+.wy-menu-vertical li.current{
+    background: transparent;
+}
+
+.wy-menu-vertical li.toctree-l1.current>a{
+    border: none;
+    color: #1BDED0;
+}
+
+.wy-menu-vertical li.toctree-l2.current>a{
+    background: transparent;
+}
+
+.wy-nav-content-wrap {
+    background: white;
+}
+
+.wy-menu-vertical li.toctree-l2 a, .wy-menu-vertical li.toctree-l3 a, .wy-menu-vertical li.toctree-l4 a{
+    color: white;
+}
+
+.wy-menu-vertical li.on a, .wy-menu-vertical li.current>a{
+    background: transparent;
+    color: #1BDED0;
+}
+
+.wy-menu-vertical a{
+    color: white;
+}
+
+.wy-menu-vertical a:hover{
+    background: transparent;
+}
+
+.wy-menu-vertical li.current a:hover {
+    background: transparent;
+}
+
+.wy-menu-vertical li.toctree-l2.current li.toctree-l3>a{
+    background: transparent;
+}
+
+td, th {
+    padding: 10px;
+}

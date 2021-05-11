@@ -1,0 +1,8 @@
+site_name: theta.js
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Theta Network: https://www.thetatoken.org
+theme: readthedocs
+extra_css:
+  - css/styles.css
