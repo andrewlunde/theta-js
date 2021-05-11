@@ -1,4 +1,4 @@
-# theta-js
+# theta-js +++
 
 ## What is theta-js?
 The theta-js library aims to be a complete and compact library for interacting with the [Theta](https://thetatoken.org) Blockchain and its ecosystem.
