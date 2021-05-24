@@ -6,6 +6,7 @@ import DepositStakeTransaction from "./types/DepositStakeTransaction";
 import DepositStakeV2Transaction from "./types/DepositStakeV2Transaction";
 import SmartContractTransaction from "./types/SmartContractTransaction";
 import WithdrawStakeTransaction from "./types/WithdrawStakeTransaction";
+import ReserveFundTransaction from "./types/ReserveFundTransaction";
 import TxType from "./common/TxType";
 
 function sign(chainID, tx, privateKey) {
@@ -51,6 +52,9 @@ function transactionFromJson(data){
     if(txType === TxType.WithdrawStake){
         return new WithdrawStakeTransaction(txData);
     }
+    if(txType === TxType.ReserveFund){
+        return new ReserveFundTransaction(txData);
+    }
 
     // Unknown transaction type. Throw error?
     return null;
@@ -66,5 +70,6 @@ export {
     DepositStakeTransaction,
     DepositStakeV2Transaction,
     WithdrawStakeTransaction,
+    ReserveFundTransaction,
     SmartContractTransaction
 }
