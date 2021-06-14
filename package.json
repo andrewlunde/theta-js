@@ -1,6 +1,6 @@
 {
   "name": "@thetalabs/theta-js",
-  "version": "0.0.51",
+  "version": "0.0.55",
   "description": "JavaScript library for interacting with the Theta Blockchain",
   "main": "dist/thetajs.cjs.js",
   "module": "dist/thetajs.esm.js",

@@ -22,7 +22,8 @@ const Zero = new BigNumber(0);
 const One = new BigNumber(1);
 const Ten18 = (new BigNumber(10)).pow(18); // 10^18, 1 Theta = 10^18 ThetaWei
 
-const gasPriceDefault = (new BigNumber(0.000001)).multipliedBy(Ten18);
+const gasPriceDefault = (new BigNumber(0.3)).multipliedBy(Ten18);
+const gasPriceSmartContractDefault = (new BigNumber(0.000004)).multipliedBy(Ten18);
 const gasLimitDefault = 10000000;
 
 export {
@@ -39,6 +40,7 @@ export {
     DerivationPaths,
 
     gasPriceDefault,
+    gasPriceSmartContractDefault,
     gasLimitDefault
 };
 

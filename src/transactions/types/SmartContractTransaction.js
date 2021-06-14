@@ -8,7 +8,7 @@ import RLP from 'eth-lib/lib/rlp';
 import Bytes from 'eth-lib/lib/bytes';
 import BaseTransaction from "../common/BaseTransaction";
 import {encodeWei} from '../../utils';
-import {AddressZero, gasPriceDefault, gasLimitDefault} from '../../constants/index';
+import {AddressZero, gasPriceSmartContractDefault, gasLimitDefault} from '../../constants/index';
 
 export default class SmartContractTransaction extends BaseTransaction{
     constructor(tx){
@@ -22,7 +22,7 @@ export default class SmartContractTransaction extends BaseTransaction{
         }
 
         if(_.isNil(gasPrice)){
-            gasPrice = gasPriceDefault;
+            gasPrice = gasPriceSmartContractDefault;
         }
 
         if(_.isNil(value)){

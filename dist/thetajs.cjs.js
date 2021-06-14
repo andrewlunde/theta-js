@@ -51,7 +51,8 @@ const Zero = new BigNumber(0);
 const One = new BigNumber(1);
 const Ten18 = (new BigNumber(10)).pow(18); // 10^18, 1 Theta = 10^18 ThetaWei
 
-const gasPriceDefault = (new BigNumber(0.000001)).multipliedBy(Ten18);
+const gasPriceDefault = (new BigNumber(0.3)).multipliedBy(Ten18);
+const gasPriceSmartContractDefault = (new BigNumber(0.000004)).multipliedBy(Ten18);
 const gasLimitDefault = 10000000;
 
 var index = /*#__PURE__*/Object.freeze({
@@ -64,6 +65,7 @@ var index = /*#__PURE__*/Object.freeze({
     Ten18: Ten18,
     DerivationPaths: DerivationPaths,
     gasPriceDefault: gasPriceDefault,
+    gasPriceSmartContractDefault: gasPriceSmartContractDefault,
     gasLimitDefault: gasLimitDefault
 });
 
@@ -711,7 +713,7 @@ class SmartContractTransaction extends BaseTransaction{
         }
 
         if(_.isNil(gasPrice)){
-            gasPrice = gasPriceDefault;
+            gasPrice = gasPriceSmartContractDefault;
         }
 
         if(_.isNil(value)){
@@ -879,101 +881,6 @@ class WithdrawStakeTransaction extends BaseTransaction{
     }
 }
 
-class ReserveFundTransaction extends BaseTransaction{
-    constructor(tx){
-        super(tx);
-
-        let {source, holder, purpose, amount, gasPrice, sequence} = tx;
-
-        if(_.isNil(gasPrice)){
-            gasPrice = gasPriceDefault;
-        }
-
-        let feeInTFuelWeiBN = BigNumber.isBigNumber(gasPrice) ? gasPrice : (new BigNumber(gasPrice));
-        this.fee = new Coins(new BigNumber(0), feeInTFuelWeiBN);
-
-        let stakeInThetaWeiBN = BigNumber.isBigNumber(amount) ? amount : (new BigNumber(amount));
-        this.source = new TxInput(source, stakeInThetaWeiBN, null, sequence);
-
-        this.purpose = purpose;
-
-        //Parse out the info from the holder param
-        let holderAddress = holder;
-
-        if(!holderAddress.startsWith('0x')){
-            holderAddress = "0x" + holder;
-        }
-
-        if(holderAddress.length !== 42) {
-            //TODO: throw error
-            console.log("Holder must be a valid address");
-        }
-
-        this.holder = new TxOutput(holderAddress, null, null);
-
-        if(_.isNil(sequence)){
-            this.setSequence(1);
-        }
-    }
-
-    setSequence(sequence){
-        const input = this.source;
-        input.sequence = sequence;
-    }
-
-    getSequence(){
-        const input = this.source;
-        return input.sequence;
-    }
-
-    setFrom(address){
-        const input = this.source;
-        input.address = address;
-    }
-
-    setSignature(signature){
-        let input = this.source;
-        input.setSignature(signature);
-    }
-
-    signBytes(chainID){
-        // Detach the existing signature from the source if any, so that we don't sign the signature
-        let sig = this.source.signature;
-
-        this.source.signature = "";
-
-        let encodedChainID = RLP.encode(Bytes.fromString(chainID));
-        let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
-        let encodedTx = RLP.encode(this.rlpInput());
-        let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
-
-        // For ethereum tx compatibility, encode the tx as the payload
-        let ethTxWrapper = new EthereumTx(payload);
-        let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
-
-        // Attach the original signature back to the source
-        this.source.signature = sig;
-
-        return signedBytes;
-    }
-
-    getType(){
-        return TxType.ReserveFund;
-    }
-
-    rlpInput(){
-        let rlpInput = [
-            this.fee.rlpInput(),
-            this.source.rlpInput(),
-            this.holder.rlpInput(),
-
-            Bytes.fromNumber(this.purpose),
-        ];
-
-        return rlpInput;
-    }
-}
-
 function sign(chainID, tx, privateKey) {
     const txRawBytes = tx.signBytes(chainID);
     const txHash = sha3(txRawBytes);
@@ -1017,9 +924,6 @@ function transactionFromJson(data){
     if(txType === TxType.WithdrawStake){
         return new WithdrawStakeTransaction(txData);
     }
-    if(txType === TxType.ReserveFund){
-        return new ReserveFundTransaction(txData);
-    }
 
     // Unknown transaction type. Throw error?
     return null;
@@ -1033,7 +937,6 @@ var index$1 = /*#__PURE__*/Object.freeze({
     DepositStakeTransaction: DepositStakeV2Transaction,
     DepositStakeV2Transaction: DepositStakeV2Transaction$1,
     WithdrawStakeTransaction: WithdrawStakeTransaction,
-    ReserveFundTransaction: ReserveFundTransaction,
     SmartContractTransaction: SmartContractTransaction
 });
 
@@ -1262,26 +1165,40 @@ class HttpProvider extends BaseProvider {
             params: params,
         };
 
-        const reqOpts = {
+        const reqOpts = _.merge({
             method: 'POST',
             body: JSON.stringify(requestBody),
             headers: {
                 "Content-Type": "application/json"
             }
-        };
+        }, HttpProvider.extraRequestOpts);
+
+        const reqStartTime = new Date().getTime();
         const response = await fetch(this.url, reqOpts);
 
         const responseText = await response.text();
 
-        if(this._reqLogger){
-            this._reqLogger({
-                request: Object.assign({}, reqOpts, {
-                    url: response.url,
-                }),
+        if(this._reqLogger || HttpProvider.requestLogger){
+            const reqLogger = this._reqLogger || HttpProvider.requestLogger;
+            const requestTime = new Date().getTime() - reqStartTime;
+            let uri = new URL(response.url);
+            uri.path = uri.pathname;
+            const req = Object.assign({}, reqOpts, {
+                url: response.url,
+                uri: uri
+            });
+            reqLogger({
+                request: req,
                 response: {
                     status: response.status,
+                    statusCode: response.status,
                     url: response.url,
+                    uri: uri,
                     body: responseText,
+                    request: req,
+                    timingPhases: {
+                        total: requestTime
+                    }
                 }
             });
         }
@@ -1295,6 +1212,9 @@ class HttpProvider extends BaseProvider {
         return this.send(args[0], args[1])
     }
 }
+
+HttpProvider.extraRequestOpts = null;
+HttpProvider.requestLogger = null;
 
 function transactionToParams(transaction, dryRun, isAsync) {
     if (transaction instanceof SmartContractTransaction) {

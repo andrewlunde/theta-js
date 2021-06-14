@@ -3697,7 +3697,8 @@
   const One = new bignumber(1);
   const Ten18 = new bignumber(10).pow(18); // 10^18, 1 Theta = 10^18 ThetaWei
 
-  const gasPriceDefault = new bignumber(0.000001).multipliedBy(Ten18);
+  const gasPriceDefault = new bignumber(0.3).multipliedBy(Ten18);
+  const gasPriceSmartContractDefault = new bignumber(0.000004).multipliedBy(Ten18);
   const gasLimitDefault = 10000000;
 
   var index = /*#__PURE__*/Object.freeze({
@@ -3710,6 +3711,7 @@
     Ten18: Ten18,
     DerivationPaths: DerivationPaths,
     gasPriceDefault: gasPriceDefault,
+    gasPriceSmartContractDefault: gasPriceSmartContractDefault,
     gasLimitDefault: gasLimitDefault
   });
 
@@ -21386,7 +21388,7 @@
           }
 
           if (lodash.isNil(gasPrice)) {
-              gasPrice = gasPriceDefault;
+              gasPrice = gasPriceSmartContractDefault;
           }
 
           if (lodash.isNil(value)) {
@@ -21823,26 +21825,40 @@
               params: params
           };
 
-          const reqOpts = {
+          const reqOpts = lodash.merge({
               method: 'POST',
               body: JSON.stringify(requestBody),
               headers: {
                   "Content-Type": "application/json"
               }
-          };
+          }, HttpProvider.extraRequestOpts);
+
+          const reqStartTime = new Date().getTime();
           const response = await fetch(this.url, reqOpts);
 
           const responseText = await response.text();
 
-          if (this._reqLogger) {
-              this._reqLogger({
-                  request: Object.assign({}, reqOpts, {
-                      url: response.url
-                  }),
+          if (this._reqLogger || HttpProvider.requestLogger) {
+              const reqLogger = this._reqLogger || HttpProvider.requestLogger;
+              const requestTime = new Date().getTime() - reqStartTime;
+              let uri = new URL(response.url);
+              uri.path = uri.pathname;
+              const req = Object.assign({}, reqOpts, {
+                  url: response.url,
+                  uri: uri
+              });
+              reqLogger({
+                  request: req,
                   response: {
                       status: response.status,
+                      statusCode: response.status,
                       url: response.url,
-                      body: responseText
+                      uri: uri,
+                      body: responseText,
+                      request: req,
+                      timingPhases: {
+                          total: requestTime
+                      }
                   }
               });
           }
@@ -21856,6 +21872,9 @@
           return this.send(args[0], args[1]);
       }
   }
+
+  HttpProvider.extraRequestOpts = null;
+  HttpProvider.requestLogger = null;
 
   function transactionToParams(transaction, dryRun, isAsync) {
       if (transaction instanceof SmartContractTransaction) {

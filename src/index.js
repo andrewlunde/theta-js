@@ -22,7 +22,6 @@ export {
     Wallet,
 
     Contract,
-    
     ContractFactory,
 
     utils,

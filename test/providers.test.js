@@ -5,9 +5,15 @@ const {ChainIds} = thetajs.networks;
 
 function createHttpProvider(chainId){
     const provider = new HttpProvider(chainId);
-    provider.setRequestLogger(function(reqData){
-        console.log(reqData);
-    });
+    // provider.setRequestLogger(function(reqData){
+    //     console.log(reqData);
+    // });
+    // HttpProvider.extraRequestOpts = {
+    //     tester: true
+    // }
+    // HttpProvider.requestLogger = function(reqData){
+    //     console.log(reqData);
+    // };
     return provider;
 }
 
@@ -34,6 +40,24 @@ test('should getTransactionCount with a HttpProvider', async () => {
 
     expect(count).not.toBe(null);
 });
+
+const example = {
+    request:
+        {
+            method: 'POST',
+            body:
+                '{"jsonrpc":"2.0","id":0,"method":"theta.GetStatus","params":{}}',
+            headers: {'Content-Type': 'application/json'},
+            url: 'https://theta-bridge-rpc.thetatoken.org/rpc'
+        },
+    response:
+        {
+            url: 'https://theta-bridge-rpc.thetatoken.org/rpc',
+            status: 200,
+            body:
+                '{"jsonrpc":"2.0","id":0,"result":{"address":"0xaBe3FE7D5f42DF43870c517450b1Be306b85Afc8","chain_id":"mainnet","peer_id":"0xaBe3FE7D5f42DF43870c517450b1Be306b85Afc8","latest_finalized_block_hash":"0xf02d9ffd4551768386296f3661a1a3d4b1c2136b84d345a5afa394923814cfa8","latest_finalized_block_height":"10117849","latest_finalized_block_time":"1619475563","latest_finalized_block_epoch":"10196228","current_epoch":"10196230","current_height":"10117849","current_time":"1619475578","syncing":false}}\n'
+        }
+}
 
 test('should getTransaction with a HttpProvider', async () => {
     const provider = createHttpProvider(ChainIds.Mainnet);
