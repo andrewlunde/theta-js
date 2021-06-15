@@ -881,6 +881,244 @@ class WithdrawStakeTransaction extends BaseTransaction{
     }
 }
 
+class ReserveFundTransaction extends BaseTransaction{
+    constructor(tx){
+        super(tx);
+
+        let {source, holder, purpose, amount, gasPrice, sequence} = tx;
+
+        if(_.isNil(gasPrice)){
+            gasPrice = gasPriceDefault;
+        }
+
+        let feeInTFuelWeiBN = BigNumber.isBigNumber(gasPrice) ? gasPrice : (new BigNumber(gasPrice));
+        this.fee = new Coins(new BigNumber(0), feeInTFuelWeiBN);
+
+        let stakeInThetaWeiBN = BigNumber.isBigNumber(amount) ? amount : (new BigNumber(amount));
+        this.source = new TxInput(source, stakeInThetaWeiBN, null, sequence);
+
+        this.purpose = purpose;
+
+        //Parse out the info from the holder param
+        let holderAddress = holder;
+
+        if(!holderAddress.startsWith('0x')){
+            holderAddress = "0x" + holder;
+        }
+
+        if(holderAddress.length !== 42) {
+            //TODO: throw error
+            console.log("Holder must be a valid address");
+        }
+
+        this.holder = new TxOutput(holderAddress, null, null);
+
+        if(_.isNil(sequence)){
+            this.setSequence(1);
+        }
+    }
+
+    setSequence(sequence){
+        const input = this.source;
+        input.sequence = sequence;
+    }
+
+    getSequence(){
+        const input = this.source;
+        return input.sequence;
+    }
+
+    setFrom(address){
+        const input = this.source;
+        input.address = address;
+    }
+
+    setSignature(signature){
+        let input = this.source;
+        input.setSignature(signature);
+    }
+
+    signBytes(chainID){
+        // Detach the existing signature from the source if any, so that we don't sign the signature
+        let sig = this.source.signature;
+
+        this.source.signature = "";
+
+        let encodedChainID = RLP.encode(Bytes.fromString(chainID));
+        let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
+        let encodedTx = RLP.encode(this.rlpInput());
+        let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
+
+        // For ethereum tx compatibility, encode the tx as the payload
+        let ethTxWrapper = new EthereumTx(payload);
+        let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
+
+        // Attach the original signature back to the source
+        this.source.signature = sig;
+
+        return signedBytes;
+    }
+
+    getType(){
+        return TxType.DepositStake;
+    }
+
+    rlpInput(){
+        let rlpInput = [
+            this.fee.rlpInput(),
+            this.source.rlpInput(),
+            this.holder.rlpInput(),
+
+            Bytes.fromNumber(this.purpose),
+        ];
+
+        return rlpInput;
+    }
+}
+
+class ServicePaymentTransaction extends BaseTransaction{
+    constructor(tx){
+        super(tx);
+
+        //TODO ensure these fields are here
+        let {from, outputs, gasPrice, sequence} = tx;
+
+        //Set default gas price if needed
+        if(_.isNil(gasPrice)){
+            gasPrice = gasPriceDefault;
+        }
+
+        let totalThetaWeiBN = new BigNumber(0);
+        let totalTfuelWeiBN = new BigNumber(0);
+        let feeInTFuelWeiBN = BigNumber.isBigNumber(gasPrice) ? gasPrice : (new BigNumber(gasPrice));
+
+        for(var i = 0; i < outputs.length; i++){
+            let output = outputs[i];
+            let thetaWei = output.thetaWei;
+            let tfuelWei = output.tfuelWei;
+
+            let thetaWeiBN = BigNumber.isBigNumber(thetaWei) ? thetaWei : (new BigNumber(thetaWei));
+            let tfuelWeiBN = BigNumber.isBigNumber(tfuelWei) ? tfuelWei : (new BigNumber(tfuelWei));
+
+            totalThetaWeiBN = totalThetaWeiBN.plus(thetaWeiBN);
+            totalTfuelWeiBN = totalTfuelWeiBN.plus(tfuelWeiBN);
+        }
+
+        this.fee = new Coins(new BigNumber(0), feeInTFuelWeiBN);
+
+        let txInput = new TxInput(from, totalThetaWeiBN, totalTfuelWeiBN.plus(feeInTFuelWeiBN), sequence);
+        this.inputs = [txInput];
+
+        this.outputs = [];
+        for(var j = 0; j < outputs.length; j++){
+            let output = outputs[j];
+            let address = output.address;
+            let thetaWei = output.thetaWei;
+            let tfuelWei = output.tfuelWei;
+
+            let thetaWeiBN = BigNumber.isBigNumber(thetaWei) ? thetaWei : (new BigNumber(thetaWei));
+            let tfuelWeiBN = BigNumber.isBigNumber(tfuelWei) ? tfuelWei : (new BigNumber(tfuelWei));
+
+            let txOutput = new TxOutput(address, thetaWeiBN, tfuelWeiBN);
+
+            this.outputs.push(txOutput);
+        }
+
+        if(_.isNil(sequence)){
+            this.setSequence(1);
+        }
+    }
+
+    setSequence(sequence){
+        let firstInput = this.inputs[0];
+        firstInput.sequence = sequence;
+        this.inputs = [firstInput];
+    }
+
+    getSequence(){
+        const firstInput = this.inputs[0];
+        return firstInput.sequence;
+    }
+
+    setFrom(address){
+        let firstInput = this.inputs[0];
+        firstInput.address = address;
+        this.inputs = [firstInput];
+    }
+
+    setSignature(signature){
+        //TODO support multiple inputs
+        let input = this.inputs[0];
+        input.setSignature(signature);
+    }
+
+    signBytes(chainID){
+        let sigz = [];
+        //let input = this.inputs[0];
+
+        // Detach the existing signatures from the input if any, so that we don't sign the signature
+        //let originalSignature = input.signature;
+        //input.signature = "";
+
+        // Detach the existing signatures from the input if any, so that we don't sign the signature
+        for(var i = 0; i < this.inputs.length; i++){
+            let input = this.inputs[i];
+
+            sigz[i] = input.signature;
+            input.signature = "";
+        }
+
+        let encodedChainID = RLP.encode(Bytes.fromString(chainID));
+        let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
+        let encodedTx = RLP.encode(this.rlpInput());
+        let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
+
+        // For ethereum tx compatibility, encode the tx as the payload
+        let ethTxWrapper = new EthereumTx(payload);
+        let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
+
+        // Attach the original signature back to the inputs
+        //input.signature = originalSignature;
+
+        // Attach the original signature back to the inputs
+        for(var j = 0; j < this.inputs.length; j++){
+            let input = this.inputs[j];
+
+            input.signature = sigz[j];
+        }
+
+        return signedBytes;
+    }
+
+    getType(){
+        return TxType.ServicePayment;
+    }
+
+    rlpInput(){
+        let numInputs = this.inputs.length;
+        let numOutputs = this.outputs.length;
+        let inputBytesArray = [];
+        let outputBytesArray = [];
+
+        for(let i = 0; i < numInputs; i ++) {
+            inputBytesArray[i] = this.inputs[i].rlpInput();
+        }
+
+        for (let i = 0; i < numOutputs; i ++) {
+            outputBytesArray[i] = this.outputs[i].rlpInput();
+        }
+
+        let rlpInput = [
+            this.fee.rlpInput(),
+            inputBytesArray,
+            outputBytesArray
+        ];
+
+        return rlpInput;
+    }
+}
+
+
 function sign(chainID, tx, privateKey) {
     const txRawBytes = tx.signBytes(chainID);
     const txHash = sha3(txRawBytes);
@@ -924,6 +1162,12 @@ function transactionFromJson(data){
     if(txType === TxType.WithdrawStake){
         return new WithdrawStakeTransaction(txData);
     }
+    if(txType === TxType.ReserveFund){
+        return new ReserveFundTransaction(txData);
+    }
+    if(txType === TxType.ServicePayment){
+        return new ServicePaymentTransaction(txData);
+    }
 
     // Unknown transaction type. Throw error?
     return null;
@@ -937,7 +1181,9 @@ var index$1 = /*#__PURE__*/Object.freeze({
     DepositStakeTransaction: DepositStakeV2Transaction,
     DepositStakeV2Transaction: DepositStakeV2Transaction$1,
     WithdrawStakeTransaction: WithdrawStakeTransaction,
-    SmartContractTransaction: SmartContractTransaction
+    SmartContractTransaction: SmartContractTransaction,
+    ReserveFundTransaction: ReserveFundTransaction,
+    ServicePaymentTransaction: ServicePaymentTransaction
 });
 
 class BaseProvider {
