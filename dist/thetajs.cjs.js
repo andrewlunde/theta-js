@@ -32,7 +32,8 @@ const TxType = {
 
 const StakePurpose = {
     StakeForValidator: 0,
-    StakeForGuardian: 1
+    StakeForGuardian: 1,
+    StakeForEliteEdge: 2
 };
 
 const ThetaBaseDerivationPath = "m/44'/500'/0'/0/";
@@ -604,8 +605,15 @@ class DepositStakeV2Transaction$1 extends BaseTransaction{
         let feeInTFuelWeiBN = BigNumber.isBigNumber(gasPrice) ? gasPrice : (new BigNumber(gasPrice));
         this.fee = new Coins(new BigNumber(0), feeInTFuelWeiBN);
 
-        let stakeInThetaWeiBN = BigNumber.isBigNumber(amount) ? amount : (new BigNumber(amount));
-        this.source = new TxInput(source, stakeInThetaWeiBN, null, sequence);
+        let stakeInWeiBN = BigNumber.isBigNumber(amount) ? amount : (new BigNumber(amount));
+        if(purpose === StakePurpose.StakeForEliteEdge){
+            // TFUEL staking
+            this.source = new TxInput(source, null, stakeInWeiBN, sequence);
+        }
+        else{
+            // THETA staking
+            this.source = new TxInput(source, stakeInWeiBN, null, sequence);
+        }
 
         this.purpose = purpose;
 
@@ -617,18 +625,17 @@ class DepositStakeV2Transaction$1 extends BaseTransaction{
         //Ensure correct size
         if(holderSummary.length !== 460) {
             //TODO: throw error
-            console.log("Holder must be a valid guardian address");
+            console.log("Holder must be a valid node summary");
         }
 
-        //let guardianKeyBytes = Bytes.fromString(holderSummary);
-        let guardianKeyBytes = Bytes.toArray(holderSummary);
+        let nodeKeyBytes = Bytes.toArray(holderSummary);
 
         //slice instead of subarray
-        let holderAddressBytes = guardianKeyBytes.slice(0, 20);
+        let holderAddressBytes = nodeKeyBytes.slice(0, 20);
 
-        this.blsPubkeyBytes = guardianKeyBytes.slice(20, 68);
-        this.blsPopBytes = guardianKeyBytes.slice(68, 164);
-        this.holderSigBytes = guardianKeyBytes.slice(164);
+        this.blsPubkeyBytes = nodeKeyBytes.slice(20, 68);
+        this.blsPopBytes = nodeKeyBytes.slice(68, 164);
+        this.holderSigBytes = nodeKeyBytes.slice(164);
 
         let holderAddress = Bytes.fromArray(holderAddressBytes);
 
@@ -881,11 +888,46 @@ class WithdrawStakeTransaction extends BaseTransaction{
     }
 }
 
+//		thetacli tx reserve 
+// --chain="privatenet" 
+// --from = 2E833968E5bB786Ae419c4d13189fB081Cc43bab
+// --fund = 900 
+// --collateral = 1203 
+// --seq = 6 
+// --duration = 1002 
+// --resource_ids = die_another_day, hello
+
+// ReserveFundRequest:
+// {
+//     "fee": {
+//         "thetawei": "0",
+//         "tfuelwei": "300000000000000000"
+//     },
+//     "source": {
+//         "address": "0x2e833968e5bb786ae419c4d13189fb081cc43bab",
+//         "coins": {
+//             "thetawei": "0",
+//             "tfuelwei": "10000000000000000000"
+//         },
+//         "sequence": "6",
+//         "signature": "0xc444a3852408769360074bc1fafbfd3cf87fe94927c41eb3917e47dc0fb75c8b4bb5ab6bcebe6ba4f266413e4bd38357e1fd4f3c769083a75a4c7f2a0cc589a900"
+//     },
+//     "collateral": {
+//         "thetawei": "0",
+//         "tfuelwei": "11000000000000000000"
+//     },
+//     "resource_ids": [
+//         "die_another_day",
+//         "hello"
+//     ],
+//     "duration": "30"
+// }
+
 class ReserveFundTransaction extends BaseTransaction{
     constructor(tx){
         super(tx);
 
-        let {source, holder, purpose, amount, gasPrice, sequence} = tx;
+        let {source, fund, collateral, duration, resource_ids, gasPrice, sequence} = tx;
 
         if(_.isNil(gasPrice)){
             gasPrice = gasPriceDefault;
@@ -894,24 +936,23 @@ class ReserveFundTransaction extends BaseTransaction{
         let feeInTFuelWeiBN = BigNumber.isBigNumber(gasPrice) ? gasPrice : (new BigNumber(gasPrice));
         this.fee = new Coins(new BigNumber(0), feeInTFuelWeiBN);
 
-        let stakeInThetaWeiBN = BigNumber.isBigNumber(amount) ? amount : (new BigNumber(amount));
-        this.source = new TxInput(source, stakeInThetaWeiBN, null, sequence);
+        let fundInTFuelWeiBN = BigNumber.isBigNumber(fund) ? fund : (new BigNumber(fund));
+        //this.fund = new Coins(new BigNumber(0), fundInTFuelWeiBN);
 
-        this.purpose = purpose;
+        let collateralInTFuelWeiBN = BigNumber.isBigNumber(collateral) ? collateral : (new BigNumber(collateral));
+        this.collateral = new Coins(new BigNumber(0), collateralInTFuelWeiBN);
 
-        //Parse out the info from the holder param
-        let holderAddress = holder;
+        this.duration = duration;
 
-        if(!holderAddress.startsWith('0x')){
-            holderAddress = "0x" + holder;
+        this.resource_ids = [];
+        for (var i = 0; i < resource_ids.length; i++) {
+            let resource_id = resource_ids[i];
+            this.resource_ids.push(resource_id);
         }
 
-        if(holderAddress.length !== 42) {
-            //TODO: throw error
-            console.log("Holder must be a valid address");
-        }
+        let zeroInThetaWeiBN = new BigNumber(0);
 
-        this.holder = new TxOutput(holderAddress, null, null);
+        this.source = new TxInput(source, zeroInThetaWeiBN, fundInTFuelWeiBN, sequence);
 
         if(_.isNil(sequence)){
             this.setSequence(1);
@@ -960,84 +1001,79 @@ class ReserveFundTransaction extends BaseTransaction{
     }
 
     getType(){
-        return TxType.DepositStake;
+        return TxType.ReserveFund;
     }
 
-    rlpInput(){
+    rlpInput() {
+        
+        let numResources = this.resource_ids.length;
+        let resource_idsArray = [];
+
+        for(let i = 0; i < numResources; i ++) {
+            resource_idsArray[i] = Bytes.fromString(this.resource_ids[i]);
+        }
+
         let rlpInput = [
             this.fee.rlpInput(),
             this.source.rlpInput(),
-            this.holder.rlpInput(),
-
-            Bytes.fromNumber(this.purpose),
+            this.collateral.rlpInput(),
+            resource_idsArray,
+            Bytes.fromNumber(this.duration),
         ];
 
         return rlpInput;
     }
 }
 
+// thetacli tx service_payment 
+// --chain="privatenet"
+// --from=2E833968E5bB786Ae419c4d13189fB081Cc43bab
+// --to=70f587259738cB626A1720Af7038B8DcDb6a42a0
+// --payment_seq=1
+// --reserve_seq=1
+// --resource_id=hello
+
 class ServicePaymentTransaction extends BaseTransaction{
     constructor(tx){
         super(tx);
 
         //TODO ensure these fields are here
-        let {from, outputs, gasPrice, sequence} = tx;
+        let {source, target, payment_seq, reserve_seq, resource_id, theta, tfuel, gasPrice } = tx;
 
         //Set default gas price if needed
         if(_.isNil(gasPrice)){
             gasPrice = gasPriceDefault;
         }
 
-        let totalThetaWeiBN = new BigNumber(0);
-        let totalTfuelWeiBN = new BigNumber(0);
         let feeInTFuelWeiBN = BigNumber.isBigNumber(gasPrice) ? gasPrice : (new BigNumber(gasPrice));
-
-        for(var i = 0; i < outputs.length; i++){
-            let output = outputs[i];
-            let thetaWei = output.thetaWei;
-            let tfuelWei = output.tfuelWei;
-
-            let thetaWeiBN = BigNumber.isBigNumber(thetaWei) ? thetaWei : (new BigNumber(thetaWei));
-            let tfuelWeiBN = BigNumber.isBigNumber(tfuelWei) ? tfuelWei : (new BigNumber(tfuelWei));
-
-            totalThetaWeiBN = totalThetaWeiBN.plus(thetaWeiBN);
-            totalTfuelWeiBN = totalTfuelWeiBN.plus(tfuelWeiBN);
-        }
 
         this.fee = new Coins(new BigNumber(0), feeInTFuelWeiBN);
 
-        let txInput = new TxInput(from, totalThetaWeiBN, totalTfuelWeiBN.plus(feeInTFuelWeiBN), sequence);
-        this.inputs = [txInput];
+        let sourceInThetaWeiBN = BigNumber.isBigNumber(theta) ? theta : (new BigNumber(theta));
+        let sourceInTFuelWeiBN = BigNumber.isBigNumber(tfuel) ? tfuel : (new BigNumber(tfuel));
 
-        this.outputs = [];
-        for(var j = 0; j < outputs.length; j++){
-            let output = outputs[j];
-            let address = output.address;
-            let thetaWei = output.thetaWei;
-            let tfuelWei = output.tfuelWei;
+        let txSource = new TxInput(source, sourceInThetaWeiBN, sourceInTFuelWeiBN, payment_seq);
+        this.source = txSource;
 
-            let thetaWeiBN = BigNumber.isBigNumber(thetaWei) ? thetaWei : (new BigNumber(thetaWei));
-            let tfuelWeiBN = BigNumber.isBigNumber(tfuelWei) ? tfuelWei : (new BigNumber(tfuelWei));
+        let targetInThetaWeiBN = BigNumber.isBigNumber(theta) ? theta : (new BigNumber(theta));
+        let targetInTFuelWeiBN = BigNumber.isBigNumber(tfuel) ? tfuel : (new BigNumber(tfuel));
 
-            let txOutput = new TxOutput(address, thetaWeiBN, tfuelWeiBN);
+        let txTarget = new TxInput(target, targetInThetaWeiBN, targetInTFuelWeiBN, 0);
+        this.target = txTarget;
 
-            this.outputs.push(txOutput);
-        }
 
-        if(_.isNil(sequence)){
+        if(_.isNil(payment_seq)){
             this.setSequence(1);
         }
     }
 
     setSequence(sequence){
-        let firstInput = this.inputs[0];
-        firstInput.sequence = sequence;
-        this.inputs = [firstInput];
+        const input = this.source;
+        input.payment_seq = sequence;
     }
 
     getSequence(){
-        const firstInput = this.inputs[0];
-        return firstInput.sequence;
+        return this.source.payment_seq;
     }
 
     setFrom(address){
@@ -1046,10 +1082,14 @@ class ServicePaymentTransaction extends BaseTransaction{
         this.inputs = [firstInput];
     }
 
-    setSignature(signature){
-        //TODO support multiple inputs
-        let input = this.inputs[0];
-        input.setSignature(signature);
+    setSourceSignature(signature){
+        let source = this.source;
+        source.setSignature(signature);
+    }
+
+    setTargetSignature(signature){
+        let target = this.target;
+        target.setSignature(signature);
     }
 
     signBytes(chainID){
@@ -1266,7 +1306,8 @@ const ChainIds =  {
     Mainnet: 'mainnet',
     Testnet: 'testnet',
     TestnetSapphire: 'testnet_sapphire',
-    Privatenet: 'privatenet'
+    Privatenet: 'privatenet',
+    EliteEdgeTestnet: 'testnet_amber'
 };
 
 const Mainnet = {
@@ -1301,11 +1342,20 @@ const Privatenet = {
     color: "#7157FF",
 };
 
+const EliteEdgeTestnet = {
+    chainId: ChainIds.EliteEdgeTestnet,
+    name: "Elite Edge Testnet",
+    rpcUrl: "http://35.235.73.165:16888/rpc",
+    explorerUrl: "https://elite-edge-testnet-explorer.thetatoken.org",
+    color: "#E0B421",
+};
+
 const networks = {
     [ChainIds.Mainnet]: Mainnet,
     [ChainIds.Testnet]: Testnet,
     [ChainIds.TestnetSapphire]: TestnetSapphire,
     [ChainIds.Privatenet]: Privatenet,
+    [ChainIds.EliteEdgeTestnet]: EliteEdgeTestnet,
 };
 
 const getRPCUrlForChainId = (chainId) => {
@@ -1328,6 +1378,7 @@ var index$2 = /*#__PURE__*/Object.freeze({
     Testnet: Testnet,
     TestnetSapphire: TestnetSapphire,
     Privatenet: Privatenet,
+    EliteEdgeTestnet: EliteEdgeTestnet,
     ChainIds: ChainIds,
     getRPCUrlForChainId: getRPCUrlForChainId,
     getExplorerUrlForChainId: getExplorerUrlForChainId,

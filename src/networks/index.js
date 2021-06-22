@@ -2,7 +2,8 @@ const ChainIds =  {
     Mainnet: 'mainnet',
     Testnet: 'testnet',
     TestnetSapphire: 'testnet_sapphire',
-    Privatenet: 'privatenet'
+    Privatenet: 'privatenet',
+    EliteEdgeTestnet: 'testnet_amber'
 };
 
 const Mainnet = {
@@ -37,11 +38,20 @@ const Privatenet = {
     color: "#7157FF",
 };
 
+const EliteEdgeTestnet = {
+    chainId: ChainIds.EliteEdgeTestnet,
+    name: "Elite Edge Testnet",
+    rpcUrl: "http://35.235.73.165:16888/rpc",
+    explorerUrl: "https://elite-edge-testnet-explorer.thetatoken.org",
+    color: "#E0B421",
+};
+
 const networks = {
     [ChainIds.Mainnet]: Mainnet,
     [ChainIds.Testnet]: Testnet,
     [ChainIds.TestnetSapphire]: TestnetSapphire,
     [ChainIds.Privatenet]: Privatenet,
+    [ChainIds.EliteEdgeTestnet]: EliteEdgeTestnet,
 }
 
 const getRPCUrlForChainId = (chainId) => {
@@ -64,6 +74,7 @@ export {
     Testnet,
     TestnetSapphire,
     Privatenet,
+    EliteEdgeTestnet,
 
     ChainIds,
 

@@ -1,4 +1,4 @@
-import {ethers} from 'ethers';
+import ethers from 'ethers';
 import {BaseSigner} from "../signers/index";
 import {sign, serialize} from "../transactions/index";
 import {DerivationPaths} from "../constants/index";

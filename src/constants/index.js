@@ -3,7 +3,8 @@ import TxType from "../transactions/common/TxType";
 
 const StakePurpose = {
     StakeForValidator: 0,
-    StakeForGuardian: 1
+    StakeForGuardian: 1,
+    StakeForEliteEdge: 2
 };
 
 const ThetaBaseDerivationPath = "m/44'/500'/0'/0/";

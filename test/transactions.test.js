@@ -34,7 +34,7 @@ function createSendTransaction(){
     return tx;
 }
 
-function createDepositStakeTransaction(){
+function createDepositThetaStakeTransaction(){
     const ten18 = (new BigNumber(10)).pow(18); // 10^18, 1 Theta = 10^18 ThetaWei, 1 Gamma = 10^ TFuelWei
     const thetaWeiToStake = (new BigNumber(10000)).multipliedBy(ten18);
     const source =  "0x59c32D1F9fF59FE524aaA34B703C0aC8Fad4d4d0";
@@ -43,8 +43,26 @@ function createDepositStakeTransaction(){
     const txData = {
         source: source,
         holderSummary: holderSummary,
-        stake: thetaWeiToStake,
+        amount: thetaWeiToStake,
         purpose: StakePurpose.StakeForGuardian
+    }
+
+    let tx = new DepositStakeV2Transaction(txData);
+
+    return tx;
+}
+
+function createDepositTFuelStakeTransaction(){
+    const ten18 = (new BigNumber(10)).pow(18); // 10^18, 1 Theta = 10^18 ThetaWei, 1 Gamma = 10^ TFuelWei
+    const tfuelWeiToStake = (new BigNumber(10000)).multipliedBy(ten18);
+    const source =  "0x95944D0F9C86794284ABc375616C83B0E6A1A8B7";
+    const holderSummary = "0xE8a650b6e34650F4bE29EB5dC97a60263085Cea1967fe5db763d7017c552e0417cc85f590cbf13a9b773b280cc380be8573ca85bcc2927a40a4d9309fb3deb033e1b46de907db461ec28deb55eb5c5ac3956060dda7cedf672aae33507752a8817fe3e88071622f7ff337f605c9d362c1c0b28fd10b8613d3d3bb10c3ffb1d87506df7b85a29e19f5f686db620b283ed3372d46108cb6d20ce3a6d6717480839f6ff76d847f20487d6da9a1af994be02b4e2ddcac86311941faaec73bd4a6206fd154f6f751e7c114c12b74d17c7c202140d9db54a2171c27968295080de97d1a6d5000501b5a662240c576a7fb0c7dd2c3692b8f039e41484c8c49cda74d957bed39bc374";
+
+    const txData = {
+        source: source,
+        holderSummary: holderSummary,
+        amount: tfuelWeiToStake,
+        purpose: StakePurpose.StakeForEliteEdge
     }
 
     let tx = new DepositStakeV2Transaction(txData);
@@ -69,71 +87,96 @@ function createWithdrawStakeTransaction(){
 
 
 
+//
+//
+// test('should create a SendTransaction', () => {
+//     const sendTx = createSendTransaction();
+//
+//     expect(sendTx).not.toBe(null);
+// });
+//
+// test('should sign a SendTransaction', () => {
+//     const provider = createHttpProvider(ChainIds.Mainnet);
+//     const privateKey = "0x19f66b5f75f0cf6fe4fbbcca24aba2031031affef8b596b922b9dfd669f8f5ae";
+//     const wallet = new Wallet(privateKey, provider);
+//     const transaction = createSendTransaction();
+//     const signedRawTxBytes = wallet.signTransaction(transaction);
+//
+//     expect(signedRawTxBytes).not.toBe(null);
+// });
+//
+// test('should send 0.0001 TFUEL to 0xB91f6163E6f1A60b6d932dcD1C190BD364e0df05 [via signer]', async () => {
+//     const provider = new HttpProvider(ChainIds.Privatenet);
+//     provider.setBroadcastAsync(true);
+//     const privateKey = "0xc88b2d8a81ceea76b41e005556c1c77c0062a5ba0566a1fe214770f485adde4f";
+//     const wallet = new Wallet(privateKey, provider);
+//     const transaction = createSendTransaction();
+//     const result = await wallet.sendTransaction(transaction);
+//
+//     expect(result.hash).not.toBe(null);
+// });
+//
+//
+//
+//
+//
+// test('should create a DepositStakeTransaction (Theta)', () => {
+//     const sendTx = createDepositThetaStakeTransaction();
+//
+//     expect(sendTx).not.toBe(null);
+// });
+//
+// test('should sign a DepositStakeTransaction (Theta)', () => {
+//     const provider = createHttpProvider(ChainIds.Mainnet);
+//     const privateKey = "0x19f66b5f75f0cf6fe4fbbcca24aba2031031affef8b596b922b9dfd669f8f5ae";
+//     const wallet = new Wallet(privateKey, provider);
+//     const transaction = createDepositThetaStakeTransaction();
+//     const signedRawTxBytes = wallet.signTransaction(transaction);
+//
+//     expect(signedRawTxBytes).not.toBe(null);
+// });
+//
+//
+//
+// test('should create a WithdrawStakeTransaction', () => {
+//     const sendTx = createWithdrawStakeTransaction();
+//
+//     expect(sendTx).not.toBe(null);
+// });
+//
+// test('should sign a WithdrawStakeTransaction', () => {
+//     const provider = createHttpProvider(ChainIds.Mainnet);
+//     const privateKey = "0x19f66b5f75f0cf6fe4fbbcca24aba2031031affef8b596b922b9dfd669f8f5ae";
+//     const wallet = new Wallet(privateKey, provider);
+//     const transaction = createWithdrawStakeTransaction();
+//     const signedRawTxBytes = wallet.signTransaction(transaction);
+//
+//     expect(signedRawTxBytes).not.toBe(null);
+// });
 
 
-test('should create a SendTransaction', () => {
-    const sendTx = createSendTransaction();
+test('should create a DepositStakeTransaction (Tfuel)', () => {
+    const sendTx = createDepositTFuelStakeTransaction();
 
     expect(sendTx).not.toBe(null);
 });
 
-test('should sign a SendTransaction', () => {
+test('should sign a DepositStakeTransaction (Tfuel)', () => {
     const provider = createHttpProvider(ChainIds.Mainnet);
     const privateKey = "0x19f66b5f75f0cf6fe4fbbcca24aba2031031affef8b596b922b9dfd669f8f5ae";
     const wallet = new Wallet(privateKey, provider);
-    const transaction = createSendTransaction();
+    const transaction = createDepositTFuelStakeTransaction();
     const signedRawTxBytes = wallet.signTransaction(transaction);
 
     expect(signedRawTxBytes).not.toBe(null);
 });
 
-test('should send 0.0001 TFUEL to 0xB91f6163E6f1A60b6d932dcD1C190BD364e0df05 [via signer]', async () => {
-    const provider = new HttpProvider(ChainIds.Privatenet);
-    provider.setBroadcastAsync(true);
-    const privateKey = "0xc88b2d8a81ceea76b41e005556c1c77c0062a5ba0566a1fe214770f485adde4f";
+test('should stake 10000 TFUEL to 0xE8a650b6e34650F4bE29EB5dC97a60263085Cea1 [via signer]', async () => {
+    const provider = new HttpProvider(ChainIds.EliteEdgeTestnet);
+    const privateKey = "0x19f66b5f75f0cf6fe4fbbcca24aba2031031affef8b596b922b9dfd669f8f5ae";
     const wallet = new Wallet(privateKey, provider);
-    const transaction = createSendTransaction();
+    const transaction = createDepositTFuelStakeTransaction();
     const result = await wallet.sendTransaction(transaction);
 
     expect(result.hash).not.toBe(null);
-});
-
-
-
-
-
-test('should create a DepositStakeTransaction', () => {
-    const sendTx = createDepositStakeTransaction();
-
-    expect(sendTx).not.toBe(null);
-});
-
-test('should sign a DepositStakeTransaction', () => {
-    const provider = createHttpProvider(ChainIds.Mainnet);
-    const privateKey = "0x19f66b5f75f0cf6fe4fbbcca24aba2031031affef8b596b922b9dfd669f8f5ae";
-    const wallet = new Wallet(privateKey, provider);
-    const transaction = createDepositStakeTransaction();
-    const signedRawTxBytes = wallet.signTransaction(transaction);
-
-    expect(signedRawTxBytes).not.toBe(null);
-});
-
-
-
-
-
-test('should create a WithdrawStakeTransaction', () => {
-    const sendTx = createWithdrawStakeTransaction();
-
-    expect(sendTx).not.toBe(null);
-});
-
-test('should sign a WithdrawStakeTransaction', () => {
-    const provider = createHttpProvider(ChainIds.Mainnet);
-    const privateKey = "0x19f66b5f75f0cf6fe4fbbcca24aba2031031affef8b596b922b9dfd669f8f5ae";
-    const wallet = new Wallet(privateKey, provider);
-    const transaction = createWithdrawStakeTransaction();
-    const signedRawTxBytes = wallet.signTransaction(transaction);
-
-    expect(signedRawTxBytes).not.toBe(null);
 });

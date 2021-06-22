@@ -1,6 +1,6 @@
-import {_} from 'lodash';
-import { ethers } from "ethers";
-import {BigNumber} from "bignumber.js";
+import _ from 'lodash';
+import ethers from "ethers";
+import BigNumber from "bignumber.js";
 import {SmartContractTransaction} from '../transactions/index';
 
 const {

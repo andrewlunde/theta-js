@@ -3678,7 +3678,8 @@
 
   const StakePurpose = {
       StakeForValidator: 0,
-      StakeForGuardian: 1
+      StakeForGuardian: 1,
+      StakeForEliteEdge: 2
   };
 
   const ThetaBaseDerivationPath = "m/44'/500'/0'/0/";
@@ -21289,8 +21290,14 @@
           let feeInTFuelWeiBN = bignumber.isBigNumber(gasPrice) ? gasPrice : new bignumber(gasPrice);
           this.fee = new Coins(new bignumber(0), feeInTFuelWeiBN);
 
-          let stakeInThetaWeiBN = bignumber.isBigNumber(amount) ? amount : new bignumber(amount);
-          this.source = new TxInput(source, stakeInThetaWeiBN, null, sequence);
+          let stakeInWeiBN = bignumber.isBigNumber(amount) ? amount : new bignumber(amount);
+          if (purpose === StakePurpose.StakeForEliteEdge) {
+              // TFUEL staking
+              this.source = new TxInput(source, null, stakeInWeiBN, sequence);
+          } else {
+              // THETA staking
+              this.source = new TxInput(source, stakeInWeiBN, null, sequence);
+          }
 
           this.purpose = purpose;
 
@@ -21302,18 +21309,17 @@
           //Ensure correct size
           if (holderSummary.length !== 460) {
               //TODO: throw error
-              console.log("Holder must be a valid guardian address");
+              console.log("Holder must be a valid node summary");
           }
 
-          //let guardianKeyBytes = Bytes.fromString(holderSummary);
-          let guardianKeyBytes = bytes.toArray(holderSummary);
+          let nodeKeyBytes = bytes.toArray(holderSummary);
 
           //slice instead of subarray
-          let holderAddressBytes = guardianKeyBytes.slice(0, 20);
+          let holderAddressBytes = nodeKeyBytes.slice(0, 20);
 
-          this.blsPubkeyBytes = guardianKeyBytes.slice(20, 68);
-          this.blsPopBytes = guardianKeyBytes.slice(68, 164);
-          this.holderSigBytes = guardianKeyBytes.slice(164);
+          this.blsPubkeyBytes = nodeKeyBytes.slice(20, 68);
+          this.blsPopBytes = nodeKeyBytes.slice(68, 164);
+          this.holderSigBytes = nodeKeyBytes.slice(164);
 
           let holderAddress = bytes.fromArray(holderAddressBytes);
 
@@ -21680,7 +21686,8 @@
       Mainnet: 'mainnet',
       Testnet: 'testnet',
       TestnetSapphire: 'testnet_sapphire',
-      Privatenet: 'privatenet'
+      Privatenet: 'privatenet',
+      EliteEdgeTestnet: 'testnet_amber'
   };
 
   const Mainnet = {
@@ -21715,11 +21722,20 @@
       color: "#7157FF"
   };
 
+  const EliteEdgeTestnet = {
+      chainId: ChainIds.EliteEdgeTestnet,
+      name: "Elite Edge Testnet",
+      rpcUrl: "http://35.235.73.165:16888/rpc",
+      explorerUrl: "https://elite-edge-testnet-explorer.thetatoken.org",
+      color: "#E0B421"
+  };
+
   const networks = {
       [ChainIds.Mainnet]: Mainnet,
       [ChainIds.Testnet]: Testnet,
       [ChainIds.TestnetSapphire]: TestnetSapphire,
-      [ChainIds.Privatenet]: Privatenet
+      [ChainIds.Privatenet]: Privatenet,
+      [ChainIds.EliteEdgeTestnet]: EliteEdgeTestnet
   };
 
   const getRPCUrlForChainId = chainId => {
@@ -21742,6 +21758,7 @@
     Testnet: Testnet,
     TestnetSapphire: TestnetSapphire,
     Privatenet: Privatenet,
+    EliteEdgeTestnet: EliteEdgeTestnet,
     ChainIds: ChainIds,
     getRPCUrlForChainId: getRPCUrlForChainId,
     getExplorerUrlForChainId: getExplorerUrlForChainId,

@@ -8,7 +8,7 @@ import BigNumber from "bignumber.js"
 import RLP from 'eth-lib/lib/rlp';
 import Bytes from 'eth-lib/lib/bytes';
 import BaseTransaction from "../common/BaseTransaction";
-import {gasPriceDefault} from "../../constants/index";
+import {gasPriceDefault, StakePurpose} from "../../constants/index";
 
 export default class DepositStakeV2Transaction extends BaseTransaction{
     constructor(tx){
@@ -23,8 +23,15 @@ export default class DepositStakeV2Transaction extends BaseTransaction{
         let feeInTFuelWeiBN = BigNumber.isBigNumber(gasPrice) ? gasPrice : (new BigNumber(gasPrice));
         this.fee = new Coins(new BigNumber(0), feeInTFuelWeiBN);
 
-        let stakeInThetaWeiBN = BigNumber.isBigNumber(amount) ? amount : (new BigNumber(amount));
-        this.source = new TxInput(source, stakeInThetaWeiBN, null, sequence);
+        let stakeInWeiBN = BigNumber.isBigNumber(amount) ? amount : (new BigNumber(amount));
+        if(purpose === StakePurpose.StakeForEliteEdge){
+            // TFUEL staking
+            this.source = new TxInput(source, null, stakeInWeiBN, sequence);
+        }
+        else{
+            // THETA staking
+            this.source = new TxInput(source, stakeInWeiBN, null, sequence);
+        }
 
         this.purpose = purpose;
 
@@ -36,18 +43,17 @@ export default class DepositStakeV2Transaction extends BaseTransaction{
         //Ensure correct size
         if(holderSummary.length !== 460) {
             //TODO: throw error
-            console.log("Holder must be a valid guardian address");
+            console.log("Holder must be a valid node summary");
         }
 
-        //let guardianKeyBytes = Bytes.fromString(holderSummary);
-        let guardianKeyBytes = Bytes.toArray(holderSummary);
+        let nodeKeyBytes = Bytes.toArray(holderSummary);
 
         //slice instead of subarray
-        let holderAddressBytes = guardianKeyBytes.slice(0, 20);
+        let holderAddressBytes = nodeKeyBytes.slice(0, 20);
 
-        this.blsPubkeyBytes = guardianKeyBytes.slice(20, 68);
-        this.blsPopBytes = guardianKeyBytes.slice(68, 164);
-        this.holderSigBytes = guardianKeyBytes.slice(164);
+        this.blsPubkeyBytes = nodeKeyBytes.slice(20, 68);
+        this.blsPopBytes = nodeKeyBytes.slice(68, 164);
+        this.holderSigBytes = nodeKeyBytes.slice(164);
 
         let holderAddress = Bytes.fromArray(holderAddressBytes);
 
