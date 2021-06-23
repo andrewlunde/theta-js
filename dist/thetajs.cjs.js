@@ -1061,10 +1061,13 @@ class ServicePaymentTransaction extends BaseTransaction{
         let txTarget = new TxInput(target, targetInThetaWeiBN, targetInTFuelWeiBN, 0);
         this.target = txTarget;
 
-
         if(_.isNil(payment_seq)){
             this.setSequence(1);
         }
+
+        this.payment_sequence = payment_seq;
+        this.reserve_sequence = reserve_seq;
+        this.resource_id = resource_id;
     }
 
     setSequence(sequence){
@@ -1082,6 +1085,11 @@ class ServicePaymentTransaction extends BaseTransaction{
         this.inputs = [firstInput];
     }
 
+    setSignature(signature){
+        let source = this.source;
+        source.setSignature(signature);
+    }
+
     setSourceSignature(signature){
         let source = this.source;
         source.setSignature(signature);
@@ -1093,20 +1101,10 @@ class ServicePaymentTransaction extends BaseTransaction{
     }
 
     signBytes(chainID){
-        let sigz = [];
-        //let input = this.inputs[0];
+        // Detach the existing signature from the source if any, so that we don't sign the signature
+        let sig = this.source.signature;
 
-        // Detach the existing signatures from the input if any, so that we don't sign the signature
-        //let originalSignature = input.signature;
-        //input.signature = "";
-
-        // Detach the existing signatures from the input if any, so that we don't sign the signature
-        for(var i = 0; i < this.inputs.length; i++){
-            let input = this.inputs[i];
-
-            sigz[i] = input.signature;
-            input.signature = "";
-        }
+        this.source.signature = "";
 
         let encodedChainID = RLP.encode(Bytes.fromString(chainID));
         let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
@@ -1117,41 +1115,92 @@ class ServicePaymentTransaction extends BaseTransaction{
         let ethTxWrapper = new EthereumTx(payload);
         let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
 
-        // Attach the original signature back to the inputs
-        //input.signature = originalSignature;
-
-        // Attach the original signature back to the inputs
-        for(var j = 0; j < this.inputs.length; j++){
-            let input = this.inputs[j];
-
-            input.signature = sigz[j];
-        }
+        // Attach the original signature back to the source
+        this.source.signature = sig;
 
         return signedBytes;
     }
 
+    sourceSignBytes(chainID) {
+        //     signBytes := encodeToBytes(chainID)
+        let encodedChainID = RLP.encode(Bytes.fromString(chainID));
+        //console.log("signBytes:\n" + JSON.stringify(transaction,null,2));
+        //console.log("signBytes:\n" + encodedChainID);
+        //var signBytes = utils.bytesToHex(chainID);
+    //     source := tx.Source
+        let source = this.source;
+    //     target := tx.Target
+        let target = this.target;
+    //     fee := tx.Fee
+        let fee = this.fee;
+
+    //     tx.Source = TxInput{Address: source.Address, Coins: source.Coins}
+        this.source = new TxInput(source.address, source.coins.thetaWei, source.coins.tfuelWei);
+    //     tx.Target = TxInput{Address: target.Address}
+        this.target = new TxInput(target.address);
+    //     tx.Fee = NewCoins(0, 0)
+        this.fee = new Coins(0, 0);
+        console.log("tx:\n" + JSON.stringify(this,null,2));
+    // //     txBytes, _ := TxToBytes(tx)
+        let encodedTx = RLP.encode(this.rlpInput());
+    //     signBytes = append(signBytes, txBytes...)
+        //console.log("encodedTx:\n" + utils.hexToBytes(encodedTx));
+        let payload = encodedChainID + encodedTx.slice(2);
+
+        // For ethereum tx compatibility, encode the tx as the payload
+        let ethTxWrapper = new EthereumTx(payload);
+        let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
+
+    //     tx.Source = source
+        this.source = source;
+    //     tx.Target = target
+        this.target = target;
+    //     tx.Fee = fee
+        this.fee = fee;
+    
+    //     signBytes = addPrefixForSignBytes(signBytes)
+        return signedBytes;
+    }
+    
+    targetSignBytes(chainID) {
+	// // TODO: remove chainID from all Tx sign bytes.
+	// signBytes := encodeToBytes(chainID)
+        let encodedChainID = RLP.encode(Bytes.fromString(chainID));
+	// targetSig := tx.Target.Signature
+        let targetSig = this.target.signature;
+	// tx.Target.Signature = nil
+        this.target.signature = "";
+
+	// txBytes, _ := TxToBytes(tx)
+        let encodedTx = RLP.encode(this.rlpInput());
+
+	// signBytes = append(signBytes, txBytes...)
+        let payload = encodedChainID + encodedTx.slice(2);
+
+	// signBytes = addPrefixForSignBytes(signBytes)
+        // For ethereum tx compatibility, encode the tx as the payload
+        let ethTxWrapper = new EthereumTx(payload);
+        let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
+
+	// tx.Target.Signature = targetSig
+        this.target.signature = targetSig;
+	// return signBytes
+        return signedBytes;
+    }
+    
     getType(){
         return TxType.ServicePayment;
     }
 
     rlpInput(){
-        let numInputs = this.inputs.length;
-        let numOutputs = this.outputs.length;
-        let inputBytesArray = [];
-        let outputBytesArray = [];
-
-        for(let i = 0; i < numInputs; i ++) {
-            inputBytesArray[i] = this.inputs[i].rlpInput();
-        }
-
-        for (let i = 0; i < numOutputs; i ++) {
-            outputBytesArray[i] = this.outputs[i].rlpInput();
-        }
 
         let rlpInput = [
             this.fee.rlpInput(),
-            inputBytesArray,
-            outputBytesArray
+            this.source.rlpInput(),
+            this.target.rlpInput(),
+            Bytes.fromNumber(this.payment_sequence),
+            Bytes.fromNumber(this.reserve_sequence),
+            this.resource_id,
         ];
 
         return rlpInput;
