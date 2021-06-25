@@ -1142,7 +1142,7 @@ class ServicePaymentTransaction extends BaseTransaction{
         this.target = new TxInput(target.address);
     //     tx.Fee = NewCoins(0, 0)
         this.fee = new Coins(0, 0);
-        delete this._rawTx;
+        // delete this._rawTx;
         this.source.sequence = "0";
         // this.target.signature = null;
         // this.target.sequence = "0";
@@ -1152,23 +1152,19 @@ class ServicePaymentTransaction extends BaseTransaction{
     // //     txBytes, _ := TxToBytes(tx)
         // 05f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f
         // 05f84...6c6f
+        let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
         let encodedTx = RLP.encode(this.rlpInput());
     //     signBytes = append(signBytes, txBytes...)
         console.log("encodedTx:" + encodedTx);
         console.log("encodedTx:" + "  05f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f");
 
-        // Detach the existing signature from the source if any, so that we don't sign the signature
-        // let sig = this.source.signature;
-
-        // let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
-        // let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
-
+        let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
 
         //let payload = encodedChainID + encodedTx.slice(2);
 // f87280808094000000000000000000000000000000000000000080b857
         // For ethereum tx compatibility, encode the tx as the payload
-        // let ethTxWrapper = new EthereumTx(payload);
-        // let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
+        let ethTxWrapper = new EthereumTx(payload);
+        let signedBytes = RLP.encode(ethTxWrapper.rlpInput()); // the signBytes conforms to the Ethereum raw tx format
 
     //     tx.Source = source
         this.source = source;
@@ -1178,7 +1174,8 @@ class ServicePaymentTransaction extends BaseTransaction{
         this.fee = fee;
     
     //     signedBytes = addPrefixForSignBytes(signedBytes)
-        let signedBytes = "f87280808094000000000000000000000000000000000000000080b8578a707269766174656e657405f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f";
+        console.log("signedBytes:" + signedBytes);
+        console.log("signedBytes:" + "  f87280808094000000000000000000000000000000000000000080b8578a707269766174656e657405f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f");
         //f87280808094000000000000000000000000000000000000000080b857-8a707269766174656e6574-05f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f
         return signedBytes;
     }
@@ -1192,12 +1189,18 @@ class ServicePaymentTransaction extends BaseTransaction{
 	// tx.Target.Signature = nil
         this.target.signature = "";
 
+        this.target.sequence = "0";
+        // delete this._rawTx;
+
+        console.log("tx:\n" + JSON.stringify(this,null,2));
+
 	// txBytes, _ := TxToBytes(tx)
-    let encodedTx = RLP.encode(this.rlpInput());
+        let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
+        let encodedTx = RLP.encode(this.rlpInput());
     //let encodedTx = RLP.encode(this);
 
 	// signBytes = append(signBytes, txBytes...)
-        let payload = encodedChainID + encodedTx.slice(2);
+        let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
 
 	// signBytes = addPrefixForSignBytes(signBytes)
         // f87280808094000000000000000000000000000000000000000080b857
@@ -1221,8 +1224,10 @@ class ServicePaymentTransaction extends BaseTransaction{
             this.fee.rlpInput(),
             this.source.rlpInput(),
             this.target.rlpInput(),
-            Bytes.fromNumber(this.payment_sequence),
-            Bytes.fromNumber(this.reserve_sequence),
+//            Bytes.fromNumber(this.payment_sequence),
+//            Bytes.fromNumber(this.reserve_sequence),
+            this.payment_sequence,
+            this.reserve_sequence,
             this.resource_id,
         ];
 
