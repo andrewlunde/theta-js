@@ -1033,6 +1033,12 @@ class ReserveFundTransaction extends BaseTransaction{
 // --reserve_seq=1
 // --resource_id=hello
 
+// I think the problem is that I'm not encoding the source payload properly before signing it.
+// Also, it's unclear if how setSignature gets called from the inherited container.
+// rlpInput may be wrong depending on how it's used to represend the payload
+// I am logging signature values from the GoLang calls, but that doesn't mean that they have
+//   to match exactly just decode properly.  Not sure.  -Andrew
+
 class ServicePaymentTransaction extends BaseTransaction{
     constructor(tx){
         super(tx);
