@@ -1092,8 +1092,8 @@ class ServicePaymentTransaction extends BaseTransaction{
     }
 
     setSignature(signature){
-        let source = this.source;
-        source.setSignature(signature);
+        let target = this.target;
+        target.setSignature(signature);
     }
 
     setSourceSignature(signature){
@@ -1113,6 +1113,8 @@ class ServicePaymentTransaction extends BaseTransaction{
         this.source.signature = "";
 
         let encodedChainID = RLP.encode(Bytes.fromString(chainID));
+        console.log("encodedChainID:\n" + encodedChainID);
+
         let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
         let encodedTx = RLP.encode(this.rlpInput());
         let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
@@ -1143,26 +1145,42 @@ class ServicePaymentTransaction extends BaseTransaction{
         let fee = this.fee;
 
     //     tx.Source = TxInput{Address: source.Address, Coins: source.Coins}
-        this.source = new TxInput(source.address, source.coins.thetaWei, source.coins.tfuelWei);
+        this.source = new TxInput(source.address, source.coins.thetaWei, source.coins.tfuelWei, 0);
     //     tx.Target = TxInput{Address: target.Address}
-        this.target = new TxInput(target.address);
+        //this.target = new TxInput(target.address, target.coins.thetaWei, target.coins.tfuelWei);
+        this.target = new TxInput(target.address, null, null, 1);
     //     tx.Fee = NewCoins(0, 0)
         this.fee = new Coins(0, 0);
         // delete this._rawTx;
-        this.source.sequence = "0";
-        // this.target.signature = null;
-        // this.target.sequence = "0";
-        // this.target.coins.thetawei = null;
-        // this.target.coins.tfuelwei = null;
+        //this.source.sequence = "0";
+        //this.source.signature = null;
+
+        //this.target.coins.thetawei = null;
+        //this.target.coins.tfuelwei = null;
+        //this.target.sequence = "0";
+        //this.target.signature = null;
+        this.source.setSignature(Bytes.fromString(""));
+        this.target.setSignature(Bytes.fromString("unsigned"));
+
         console.log("tx:\n" + JSON.stringify(this,null,2));
     // //     txBytes, _ := TxToBytes(tx)
         // 05f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f
         // 05f84...6c6f
-        let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
-        let encodedTx = RLP.encode(this.rlpInput());
+        //let encodedTxType = RLP.encode(Bytes.fromNumber(this.getType()));
+        let this_type = this.getType();
+        console.log("this_type:" + this_type);
+        let this_bytes = Bytes.fromNumber(this_type);
+        console.log("this_bytes:" + this_bytes);
+        let encodedTxType = RLP.encode(this_bytes);
+        console.log("encodedTxType:" + encodedTxType);
+
+        //let encodedTx = RLP.encode(this.rlpInput());
+        let rlp_input = this.rlpInput();
+        console.log("rlp_input:" + rlp_input);
+        let encodedTx = RLP.encode(rlp_input);
     //     signBytes = append(signBytes, txBytes...)
         console.log("encodedTx:" + encodedTx);
-        console.log("encodedTx:" + "  05f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f");
+        // console.log("encodedTx:" + "  05f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f");
 
         let payload = encodedChainID + encodedTxType.slice(2) + encodedTx.slice(2);
 
@@ -1181,7 +1199,7 @@ class ServicePaymentTransaction extends BaseTransaction{
     
     //     signedBytes = addPrefixForSignBytes(signedBytes)
         console.log("signedBytes:" + signedBytes);
-        console.log("signedBytes:" + "  f87280808094000000000000000000000000000000000000000080b8578a707269766174656e657405f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f");
+        //console.log("signedBytes:" + "  f87280808094000000000000000000000000000000000000000080b8578a707269766174656e657405f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f");
         //f87280808094000000000000000000000000000000000000000080b857-8a707269766174656e6574-05f849c28080e2942e833968e5bb786ae419c4d13189fb081cc43babca80887ce66c50e28400008080da9470f587259738cb626a1720af7038b8dcdb6a42a0c28080808004058568656c6c6f
         return signedBytes;
     }
@@ -1193,7 +1211,8 @@ class ServicePaymentTransaction extends BaseTransaction{
 	// targetSig := tx.Target.Signature
         let targetSig = this.target.signature;
 	// tx.Target.Signature = nil
-        this.target.signature = "";
+        //this.target.signature = "";
+        this.target.setSignature(Bytes.fromString(""));
 
         this.target.sequence = "0";
         // delete this._rawTx;
@@ -1226,15 +1245,23 @@ class ServicePaymentTransaction extends BaseTransaction{
 
     rlpInput(){
 
+        console.log("fee:\n" + this.fee.rlpInput());
+        console.log("source:\n" + this.source.rlpInput());
+        console.log("target:\n" + this.target.rlpInput());
+        console.log("payment_sequence:\n" + Bytes.fromNumber(this.payment_sequence));
+        console.log("reserve_sequence:\n" + Bytes.fromNumber(this.reserve_sequence));
+        console.log("resource_id:\n" + Bytes.fromString(this.resource_id));
+
         let rlpInput = [
             this.fee.rlpInput(),
             this.source.rlpInput(),
             this.target.rlpInput(),
-//            Bytes.fromNumber(this.payment_sequence),
-//            Bytes.fromNumber(this.reserve_sequence),
-            this.payment_sequence,
-            this.reserve_sequence,
-            this.resource_id,
+            Bytes.fromNumber(this.payment_sequence),
+            Bytes.fromNumber(this.reserve_sequence),
+            // this.payment_sequence,
+            // this.reserve_sequence,
+            // this.resource_id,
+            Bytes.fromString(this.resource_id),
         ];
 
         return rlpInput;
